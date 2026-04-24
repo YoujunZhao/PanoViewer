@@ -226,6 +226,51 @@ button.ghost {
   color: var(--error);
 }
 
+.transcode-help {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(20, 36, 48, 0.18);
+  background: rgba(20, 36, 48, 0.06);
+}
+
+.transcode-help h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.transcode-reason {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-700);
+}
+
+.transcode-label {
+  margin: 0;
+  font-weight: 700;
+  color: var(--ink-700);
+  font-size: 0.82rem;
+}
+
+.transcode-code {
+  margin: 0;
+  padding: 0.5rem 0.55rem;
+  border-radius: 0.6rem;
+  background: rgba(17, 38, 49, 0.94);
+  color: #e6f4ff;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.74rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+button.copy-btn {
+  justify-self: start;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.8rem;
+}
+
 .viewer-card {
   padding: 0.85rem;
   display: grid;

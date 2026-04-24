@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  buildVideoTranscodeCommands,
   detectPanoramaMediaType,
   getEquirectangularValidationDecision,
   getVideoDecodeErrorMessage,
   isLikelyEquirectangular,
   ObjectUrlStore,
   preflightVideoPlayback,
+  sniffVideoCompatibilityHint,
   validateLikelyEquirectangular,
 } from './media-file';
 
@@ -184,6 +186,65 @@ describe('getVideoDecodeErrorMessage', () => {
 
     expect(message).toContain('decode this video');
     expect(message).toContain('VP9');
+  });
+});
+
+describe('buildVideoTranscodeCommands', () => {
+  it('builds safe ffmpeg commands from the uploaded file name', () => {
+    const commands = buildVideoTranscodeCommands('Castle Fortress 0_2k 1k.mp4');
+
+    expect(commands.mp4).toContain('ffmpeg -i "Castle Fortress 0_2k 1k.mp4"');
+    expect(commands.mp4).toContain('"Castle_Fortress_0_2k_1k-h264.mp4"');
+    expect(commands.webm).toContain('"Castle_Fortress_0_2k_1k-vp9.webm"');
+  });
+
+  it('falls back to a safe output name when filename has no safe characters', () => {
+    const commands = buildVideoTranscodeCommands('!@#$%^&*()');
+
+    expect(commands.mp4).toContain('ffmpeg -i "!@#\\$%^&*()"');
+    expect(commands.mp4).toContain('"panorama-h264.mp4"');
+  });
+
+  it('escapes shell-sensitive characters in the input path', () => {
+    const commands = buildVideoTranscodeCommands('danger`$".mp4');
+
+    expect(commands.mp4).toContain('ffmpeg -i "danger');
+    expect(commands.mp4).toContain('\\`');
+    expect(commands.mp4).toContain('\\$');
+    expect(commands.mp4).toContain('\\".mp4"');
+  });
+});
+
+describe('sniffVideoCompatibilityHint', () => {
+  it('flags legacy MPEG stream signatures', async () => {
+    const bytes = new Uint8Array([
+      0x00,
+      0x00,
+      0x00,
+      0x1c,
+      0x66,
+      0x74,
+      0x79,
+      0x70,
+      0x69,
+      0x73,
+      0x6f,
+      0x6d,
+      0x00,
+      0x00,
+      0x01,
+      0xb3,
+    ]);
+    const file = new File([bytes], 'legacy.mp4', { type: 'video/mp4' });
+
+    await expect(sniffVideoCompatibilityHint(file)).resolves.toContain('legacy MPEG stream markers');
+  });
+
+  it('returns null when modern codec markers are present', async () => {
+    const bytes = new TextEncoder().encode('....avc1....');
+    const file = new File([bytes], 'modern.mp4', { type: 'video/mp4' });
+
+    await expect(sniffVideoCompatibilityHint(file)).resolves.toBeNull();
   });
 });
 

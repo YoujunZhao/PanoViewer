@@ -3,11 +3,13 @@ import '@photo-sphere-viewer/video-plugin/index.css';
 import './style.css';
 
 import {
+  buildVideoTranscodeCommands,
   detectPanoramaMediaType,
   getEquirectangularValidationDecision,
   getVideoLoadFailureMessage,
   ObjectUrlStore,
   preflightVideoPlayback,
+  sniffVideoCompatibilityHint,
   type PanoramaMediaType,
   validateLikelyEquirectangular,
 } from './lib/media-file';
@@ -60,6 +62,19 @@ app.innerHTML = `
         </dl>
 
         <p id="status" class="status" aria-live="polite">Select or drop a panorama file to start.</p>
+
+        <section id="transcode-help" class="transcode-help" hidden aria-live="polite">
+          <h3>Conversion Helper</h3>
+          <p id="transcode-reason" class="transcode-reason"></p>
+
+          <p class="transcode-label">MP4 (H.264/AVC + AAC)</p>
+          <pre id="transcode-mp4" class="transcode-code"></pre>
+          <button id="copy-mp4-btn" type="button" class="ghost copy-btn">Copy MP4 command</button>
+
+          <p class="transcode-label">WebM (VP9 + Opus)</p>
+          <pre id="transcode-webm" class="transcode-code"></pre>
+          <button id="copy-webm-btn" type="button" class="ghost copy-btn">Copy WebM command</button>
+        </section>
       </aside>
 
       <section class="viewer-card" aria-label="Panorama viewer">
@@ -77,6 +92,12 @@ const clearButton = document.querySelector<HTMLButtonElement>('#clear-btn');
 const modeValue = document.querySelector<HTMLElement>('#mode-value');
 const fileValue = document.querySelector<HTMLElement>('#file-value');
 const status = document.querySelector<HTMLElement>('#status');
+const transcodeHelp = document.querySelector<HTMLElement>('#transcode-help');
+const transcodeReason = document.querySelector<HTMLElement>('#transcode-reason');
+const transcodeMp4 = document.querySelector<HTMLElement>('#transcode-mp4');
+const transcodeWebm = document.querySelector<HTMLElement>('#transcode-webm');
+const copyMp4Button = document.querySelector<HTMLButtonElement>('#copy-mp4-btn');
+const copyWebmButton = document.querySelector<HTMLButtonElement>('#copy-webm-btn');
 const viewerContainer = document.querySelector<HTMLElement>('#viewer');
 
 if (
@@ -87,6 +108,12 @@ if (
   !modeValue ||
   !fileValue ||
   !status ||
+  !transcodeHelp ||
+  !transcodeReason ||
+  !transcodeMp4 ||
+  !transcodeWebm ||
+  !copyMp4Button ||
+  !copyWebmButton ||
   !viewerContainer
 ) {
   throw new Error('Missing required UI elements');
@@ -95,6 +122,10 @@ if (
 const modeValueEl = modeValue;
 const fileValueEl = fileValue;
 const statusEl = status;
+const transcodeHelpEl = transcodeHelp;
+const transcodeReasonEl = transcodeReason;
+const transcodeMp4El = transcodeMp4;
+const transcodeWebmEl = transcodeWebm;
 const fileInputEl = fileInput;
 
 const viewerController = new PanoramaViewerController(viewerContainer);
@@ -112,19 +143,86 @@ function setMeta(mode: PanoramaMediaType | null, fileName: string | null): void 
   fileValueEl.textContent = fileName ?? '-';
 }
 
+function shouldShowTranscodeHelp(errorMessage: string): boolean {
+  return /not supported|cannot decode|failed to decode|could not read/i.test(errorMessage);
+}
+
+function hideTranscodeHelp(): void {
+  transcodeHelpEl.hidden = true;
+  transcodeReasonEl.textContent = '';
+  transcodeMp4El.textContent = '';
+  transcodeWebmEl.textContent = '';
+}
+
+function showTranscodeHelp(fileName: string, reason: string | null): void {
+  const commands = buildVideoTranscodeCommands(fileName);
+  transcodeReasonEl.textContent = reason ?? 'Your browser cannot decode this uploaded video directly. Convert it with one of the commands below and upload the converted file.';
+  transcodeMp4El.textContent = commands.mp4;
+  transcodeWebmEl.textContent = commands.webm;
+  transcodeHelpEl.hidden = false;
+}
+
+async function writeClipboardText(text: string): Promise<void> {
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  if (!document.body) {
+    throw new Error('Clipboard copy is unavailable until document body is ready.');
+  }
+
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.setAttribute('readonly', 'true');
+  textArea.style.position = 'fixed';
+  textArea.style.opacity = '0';
+
+  try {
+    document.body.appendChild(textArea);
+    textArea.select();
+
+    const copied = document.execCommand('copy');
+    if (!copied) {
+      throw new Error('Clipboard copy is unavailable in this browser.');
+    }
+  } finally {
+    textArea.remove();
+  }
+}
+
+async function copyCommandToClipboard(command: string, label: string): Promise<void> {
+  if (!command.trim()) {
+    setStatus('No command available to copy yet.', 'error');
+    return;
+  }
+
+  try {
+    await writeClipboardText(command);
+    setStatus(`${label} command copied. Run it in a terminal with ffmpeg installed.`);
+  } catch {
+    setStatus('Copy failed in this browser. You can still select and copy the command text manually.', 'error');
+  }
+}
+
+hideTranscodeHelp();
+
 async function loadPanoramaFile(file: File): Promise<void> {
   const mediaType = detectPanoramaMediaType(file);
 
   if (!mediaType) {
+    hideTranscodeHelp();
     setStatus('Unsupported file format. Please use a panorama image or video file.', 'error');
     fileInputEl.value = '';
     return;
   }
 
+  hideTranscodeHelp();
   setStatus('Inspecting media metadata...');
   const looksLikePanorama = await validateLikelyEquirectangular(file, mediaType);
   const validationDecision = getEquirectangularValidationDecision(mediaType, looksLikePanorama);
   if (!validationDecision.allowLoad) {
+    hideTranscodeHelp();
     setStatus(validationDecision.message ?? 'File validation failed.', 'error');
     fileInputEl.value = '';
     return;
@@ -146,6 +244,7 @@ async function loadPanoramaFile(file: File): Promise<void> {
     currentObjectUrl = nextObjectUrl;
     objectUrlStore.revoke(previousObjectUrl);
     setMeta(mediaType, file.name);
+    hideTranscodeHelp();
     if (validationDecision.level === 'warning') {
       setStatus(validationDecision.message ?? 'Loaded with warning.');
     } else {
@@ -157,8 +256,15 @@ async function loadPanoramaFile(file: File): Promise<void> {
     currentObjectUrl = null;
     setMeta(null, null);
     if (mediaType === 'video') {
-      setStatus(getVideoLoadFailureMessage(error), 'error');
+      const failureMessage = getVideoLoadFailureMessage(error);
+      setStatus(failureMessage, 'error');
+
+      if (shouldShowTranscodeHelp(failureMessage)) {
+        const streamHint = await sniffVideoCompatibilityHint(file);
+        showTranscodeHelp(file.name, streamHint);
+      }
     } else {
+      hideTranscodeHelp();
       setStatus('Failed to render this panorama file. Please check format and try another one.', 'error');
     }
     console.error(error);
@@ -200,6 +306,14 @@ dropzone.addEventListener('drop', (event) => {
   }
 });
 
+copyMp4Button.addEventListener('click', () => {
+  void copyCommandToClipboard(transcodeMp4El.textContent ?? '', 'MP4');
+});
+
+copyWebmButton.addEventListener('click', () => {
+  void copyCommandToClipboard(transcodeWebmEl.textContent ?? '', 'WebM');
+});
+
 fullscreenButton.addEventListener('click', () => {
   if (!viewerController.toggleFullscreen()) {
     setStatus('Load a panorama first to use fullscreen mode.', 'error');
@@ -211,6 +325,7 @@ clearButton.addEventListener('click', () => {
   objectUrlStore.revoke(currentObjectUrl);
   currentObjectUrl = null;
   setMeta(null, null);
+  hideTranscodeHelp();
   setStatus('Viewer cleared. Select another panorama file to continue.');
   fileInput.value = '';
 });
