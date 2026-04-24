@@ -22,7 +22,6 @@ It supports loading local equirectangular panorama images and videos directly in
 - Video mode controls: play/pause, mute, time/progress bar (via VideoPlugin)
 - Drag-and-drop file loading
 - Client-side 2:1 ratio validation: strict for images, warning-only for videos
-- Unsupported video diagnostics with built-in ffmpeg conversion command helper
 - Automatic in-browser conversion for unsupported codecs (tries MP4 H.264 first, then WebM VP9)
 
 ## Tech Stack
@@ -100,7 +99,6 @@ Use these settings:
 - Panorama sources are expected to be equirectangular and close to 2:1 ratio.
 - Images that fail the ratio check are blocked. Videos that fail the ratio check show a warning but still attempt to load.
 - If video rendering still fails, the browser likely cannot decode the codec/profile. Convert to MP4 (H.264/AVC + AAC, yuv420p, faststart) or WebM (VP9 + Opus).
-- The UI now shows copyable ffmpeg commands after decode failures, generated from the uploaded file name.
 - In-browser conversion runs locally in your browser and may download transcoder core assets on first use.
 - Extremely large videos are better converted offline with ffmpeg to avoid browser memory pressure.
 - Very large video panoramas may be limited by browser/GPU capabilities.

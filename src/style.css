@@ -29,10 +29,7 @@ body {
   margin: 0;
   min-height: 100svh;
   color: var(--ink-900);
-  background:
-    radial-gradient(circle at 15% 10%, rgba(242, 168, 77, 0.25), transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(10, 159, 157, 0.16), transparent 45%),
-    linear-gradient(140deg, var(--sand-50), #f7f0e5 40%, #f5ecdf 100%);
+  background: #ffffff;
 }
 
 #app {
@@ -53,7 +50,7 @@ body {
   padding: clamp(1rem, 2vw, 1.4rem);
   border: 1px solid rgba(20, 36, 48, 0.12);
   border-radius: 1rem;
-  background: rgba(255, 250, 241, 0.74);
+  background: #ffffff;
   backdrop-filter: blur(6px);
   animation: reveal-up 0.55s ease both;
 }
@@ -89,7 +86,7 @@ h1 {
 .viewer-card {
   border: 1px solid rgba(20, 36, 48, 0.12);
   border-radius: 1rem;
-  background: rgba(255, 250, 241, 0.72);
+  background: #ffffff;
   backdrop-filter: blur(8px);
   box-shadow: 0 16px 28px -26px rgba(10, 38, 59, 0.8);
 }
@@ -136,7 +133,11 @@ h1 {
 .dropzone {
   border: 2px dashed rgba(10, 159, 157, 0.38);
   border-radius: 0.9rem;
+  min-height: 132px;
   padding: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   color: var(--ink-700);
   background: rgba(242, 168, 77, 0.08);
@@ -224,63 +225,6 @@ button.ghost {
 .status[data-kind='error'] {
   background: rgba(190, 61, 47, 0.14);
   color: var(--error);
-}
-
-.transcode-help {
-  display: grid;
-  gap: 0.45rem;
-  padding: 0.75rem;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(20, 36, 48, 0.18);
-  background: rgba(20, 36, 48, 0.06);
-}
-
-.transcode-help h3 {
-  margin: 0;
-  font-size: 0.95rem;
-}
-
-.transcode-reason {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--ink-700);
-}
-
-.auto-convert-status {
-  margin: 0;
-  font-size: 0.82rem;
-  color: var(--teal-700);
-}
-
-.auto-convert-note {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--ink-500);
-}
-
-.transcode-label {
-  margin: 0;
-  font-weight: 700;
-  color: var(--ink-700);
-  font-size: 0.82rem;
-}
-
-.transcode-code {
-  margin: 0;
-  padding: 0.5rem 0.55rem;
-  border-radius: 0.6rem;
-  background: rgba(17, 38, 49, 0.94);
-  color: #e6f4ff;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.74rem;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-button.copy-btn {
-  justify-self: start;
-  padding: 0.45rem 0.65rem;
-  font-size: 0.8rem;
 }
 
 .viewer-card {
