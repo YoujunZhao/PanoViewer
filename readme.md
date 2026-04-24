@@ -1,14 +1,23 @@
-# 360 Panorama Viewer (Static Frontend)
+<h1 align="center">
+	<img src="public/favicon.svg" alt="Panorama Viewer Logo" width="36" />
+	360 Panorama Viewer
+</h1>
 
-Live URL: https://youjunzhao.github.io/PanoViewer/
+<p align="center">
+	<a href="https://youjunzhao.github.io/PanoViewer/">
+		<img src="https://img.shields.io/badge/Website-Open%20PanoViewer-0A9F9D?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Website" />
+	</a>
+</p>
 
 ## Demo
 
-- Online demo: https://youjunzhao.github.io/PanoViewer/
-
 ![Panorama Image](public/pano_img.png)
 
-![Panorama Image Demo](public/pano_img_demo.png)
+![Panorama Image Demo](public/pano_img_demo.gif)
+
+![Panorama Video](public/pano_video.png)
+
+![Panorama ImVideoage Demo](public/pano_video_demo.gif)
 
 Pure frontend 360 panorama viewer based on Photo Sphere Viewer + TypeScript + Vite.
 
