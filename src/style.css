@@ -45,45 +45,51 @@ body {
 }
 
 .topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.9rem;
-  padding: 0.75rem 1rem;
+  display: grid;
+  gap: 0.55rem;
+  padding: clamp(1rem, 2vw, 1.4rem);
   border: 1px solid rgba(20, 36, 48, 0.12);
-  border-radius: 0.9rem;
+  border-radius: 1rem;
   background: #ffffff;
   backdrop-filter: blur(6px);
   animation: reveal-up 0.55s ease both;
 }
 
-.topbar-brand {
+.eyebrow {
+  margin: 0;
+  color: var(--teal-700);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+}
+
+.site-title {
+  margin: 0;
+  line-height: 1.05;
+  font-size: clamp(1.6rem, 3.6vw, 2.6rem);
   display: inline-flex;
   align-items: center;
-  gap: 0.52rem;
-  min-width: 0;
+  gap: 0.55rem;
+  flex-wrap: wrap;
 }
 
-.brand-logo {
-  width: 28px;
-  height: 28px;
+.site-logo {
+  width: 32px;
+  height: 32px;
   display: block;
+  flex: 0 0 auto;
 }
 
-.brand-name {
-  margin: 0;
-  line-height: 1;
-  font-size: 1.1rem;
-  font-weight: 700;
+.site-title {
   color: var(--ink-900);
+  font-weight: 700;
 }
 
 .topbar-note {
   margin: 0;
   color: var(--ink-700);
-  max-width: 70ch;
-  font-size: 0.9rem;
-  text-align: right;
+  max-width: 75ch;
 }
 
 .layout {
@@ -284,15 +290,6 @@ button.ghost {
 }
 
 @media (max-width: 940px) {
-  .topbar {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .topbar-note {
-    text-align: left;
-  }
-
   .layout {
     grid-template-columns: 1fr;
   }
