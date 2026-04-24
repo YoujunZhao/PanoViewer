@@ -1,5 +1,14 @@
 # 360 Panorama Viewer (Static Frontend)
 
+Live URL: https://youjunzhao.github.io/PanoViewer/
+
+## Demo
+
+- Online demo: https://youjunzhao.github.io/PanoViewer/
+- Example screenshot:
+
+![Demo Screenshot](public/demo-screenshot.png)
+
 Pure frontend 360 panorama viewer based on Photo Sphere Viewer + TypeScript + Vite.
 
 It supports loading local equirectangular panorama images and videos directly in browser using File API + URL.createObjectURL(), without any backend.
@@ -88,4 +97,5 @@ Use these settings:
 
 - Panorama sources are expected to be equirectangular and close to 2:1 ratio.
 - Images that fail the ratio check are blocked. Videos that fail the ratio check show a warning but still attempt to load.
+- If video rendering still fails, the browser likely cannot decode the codec/profile. Convert to MP4 (H.264/AVC + AAC, yuv420p, faststart) or WebM (VP9 + Opus).
 - Very large video panoramas may be limited by browser/GPU capabilities.

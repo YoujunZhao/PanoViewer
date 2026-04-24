@@ -5,7 +5,9 @@ import './style.css';
 import {
   detectPanoramaMediaType,
   getEquirectangularValidationDecision,
+  getVideoLoadFailureMessage,
   ObjectUrlStore,
+  preflightVideoPlayback,
   type PanoramaMediaType,
   validateLikelyEquirectangular,
 } from './lib/media-file';
@@ -137,6 +139,7 @@ async function loadPanoramaFile(file: File): Promise<void> {
     if (mediaType === 'image') {
       await viewerController.loadImage(nextObjectUrl);
     } else {
+      await preflightVideoPlayback(nextObjectUrl, file.type);
       await viewerController.loadVideo(nextObjectUrl);
     }
 
@@ -153,7 +156,11 @@ async function loadPanoramaFile(file: File): Promise<void> {
     objectUrlStore.revoke(previousObjectUrl);
     currentObjectUrl = null;
     setMeta(null, null);
-    setStatus('Failed to render this panorama file. Please check format and try another one.', 'error');
+    if (mediaType === 'video') {
+      setStatus(getVideoLoadFailureMessage(error), 'error');
+    } else {
+      setStatus('Failed to render this panorama file. Please check format and try another one.', 'error');
+    }
     console.error(error);
   } finally {
     fileInputEl.value = '';

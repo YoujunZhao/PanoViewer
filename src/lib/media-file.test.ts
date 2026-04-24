@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   detectPanoramaMediaType,
   getEquirectangularValidationDecision,
+  getVideoDecodeErrorMessage,
   isLikelyEquirectangular,
   ObjectUrlStore,
+  preflightVideoPlayback,
   validateLikelyEquirectangular,
 } from './media-file';
 
@@ -166,6 +168,177 @@ describe('validateLikelyEquirectangular', () => {
       writable: true,
       value: originalRevokeObjectURL,
     });
+  });
+});
+
+describe('getVideoDecodeErrorMessage', () => {
+  it('returns actionable message for unsupported source errors', () => {
+    const message = getVideoDecodeErrorMessage(4, 'video/mp4');
+
+    expect(message).toContain('not supported');
+    expect(message).toContain('H.264');
+  });
+
+  it('returns actionable message for decode errors', () => {
+    const message = getVideoDecodeErrorMessage(3, 'video/mp4');
+
+    expect(message).toContain('decode this video');
+    expect(message).toContain('VP9');
+  });
+});
+
+describe('preflightVideoPlayback', () => {
+  it('resolves when metadata can be loaded', async () => {
+    const originalCreateElement = document.createElement.bind(document);
+    const removedEvents: string[] = [];
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => {
+      if (tagName !== 'video') {
+        return originalCreateElement(tagName as keyof HTMLElementTagNameMap);
+      }
+
+      const listeners: Record<string, (() => void) | undefined> = {};
+      const fakeVideo = {
+        preload: '',
+        playsInline: false,
+        muted: false,
+        crossOrigin: '',
+        readyState: 0,
+        videoWidth: 0,
+        canPlayType() {
+          return 'maybe';
+        },
+        addEventListener(event: string, callback: () => void) {
+          listeners[event] = callback;
+        },
+        removeEventListener(event: string) {
+          removedEvents.push(event);
+          delete listeners[event];
+        },
+        remove() {},
+        set src(_value: string) {
+          this.readyState = 1;
+          this.videoWidth = 4000;
+          listeners.loadedmetadata?.();
+        },
+      };
+
+      return fakeVideo as unknown as HTMLElement;
+    }) as typeof document.createElement);
+
+    await expect(preflightVideoPlayback('blob:test', 'video/mp4')).resolves.toBeUndefined();
+    expect(removedEvents).toContain('loadedmetadata');
+    expect(removedEvents).toContain('error');
+
+    createElementSpy.mockRestore();
+  });
+
+  it('rejects when video metadata fails to load', async () => {
+    const originalCreateElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => {
+      if (tagName !== 'video') {
+        return originalCreateElement(tagName as keyof HTMLElementTagNameMap);
+      }
+
+      const listeners: Record<string, (() => void) | undefined> = {};
+      const fakeVideo = {
+        preload: '',
+        playsInline: false,
+        muted: false,
+        crossOrigin: '',
+        readyState: 0,
+        videoWidth: 0,
+        canPlayType() {
+          return 'maybe';
+        },
+        error: {
+          code: 3,
+        },
+        addEventListener(event: string, callback: () => void) {
+          listeners[event] = callback;
+        },
+        removeEventListener(event: string) {
+          delete listeners[event];
+        },
+        remove() {},
+        set src(_value: string) {
+          listeners.error?.();
+        },
+      };
+
+      return fakeVideo as unknown as HTMLElement;
+    }) as typeof document.createElement);
+
+    await expect(preflightVideoPlayback('blob:test', 'video/mp4')).rejects.toThrow('decode this video');
+
+    createElementSpy.mockRestore();
+  });
+
+  it('rejects early when browser cannot play the mime type', async () => {
+    const originalCreateElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => {
+      if (tagName !== 'video') {
+        return originalCreateElement(tagName as keyof HTMLElementTagNameMap);
+      }
+
+      const fakeVideo = {
+        preload: '',
+        playsInline: false,
+        muted: false,
+        crossOrigin: '',
+        readyState: 0,
+        videoWidth: 0,
+        canPlayType() {
+          return '';
+        },
+        addEventListener() {},
+        removeEventListener() {},
+        remove() {},
+        set src(_value: string) {},
+      };
+
+      return fakeVideo as unknown as HTMLElement;
+    }) as typeof document.createElement);
+
+    await expect(preflightVideoPlayback('blob:test', 'video/mp4')).rejects.toThrow('not supported');
+
+    createElementSpy.mockRestore();
+  });
+
+  it('rejects on metadata timeout', async () => {
+    vi.useFakeTimers();
+
+    const originalCreateElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => {
+      if (tagName !== 'video') {
+        return originalCreateElement(tagName as keyof HTMLElementTagNameMap);
+      }
+
+      const fakeVideo = {
+        preload: '',
+        playsInline: false,
+        muted: false,
+        crossOrigin: '',
+        readyState: 0,
+        videoWidth: 0,
+        canPlayType() {
+          return 'maybe';
+        },
+        addEventListener() {},
+        removeEventListener() {},
+        remove() {},
+        set src(_value: string) {},
+      };
+
+      return fakeVideo as unknown as HTMLElement;
+    }) as typeof document.createElement);
+
+    const promise = preflightVideoPlayback('blob:test', 'video/mp4');
+    const assertion = expect(promise).rejects.toThrow('Timed out while reading video metadata');
+    await vi.advanceTimersByTimeAsync(8001);
+    await assertion;
+
+    createElementSpy.mockRestore();
+    vi.useRealTimers();
   });
 });
 

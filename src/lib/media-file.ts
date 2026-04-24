@@ -6,6 +6,8 @@ export type EquirectangularValidationDecision = {
   message: string | null;
 };
 
+const VIDEO_TRANSCODE_TIP = 'Please convert the video to MP4 (H.264/AVC + AAC, yuv420p, faststart) or WebM (VP9 + Opus).';
+
 const IMAGE_EXTENSIONS = new Set([
   'jpg',
   'jpeg',
@@ -83,6 +85,99 @@ export function getEquirectangularValidationDecision(
     level: 'error',
     message: 'This file does not look like a full equirectangular panorama (expected close to a 2:1 ratio).',
   };
+}
+
+export function getVideoDecodeErrorMessage(
+  errorCode?: number | null,
+  mimeType = 'video file',
+): string {
+  switch (errorCode) {
+    case 1:
+      return 'Video loading was interrupted before metadata was read. Please try again.';
+    case 2:
+      return `The browser could not read this ${mimeType}. ${VIDEO_TRANSCODE_TIP}`;
+    case 3:
+      return `The browser cannot decode this video codec/profile. ${VIDEO_TRANSCODE_TIP}`;
+    case 4:
+      return `This video format is not supported by your browser. ${VIDEO_TRANSCODE_TIP}`;
+    default:
+      return `Failed to decode this video in the current browser. ${VIDEO_TRANSCODE_TIP}`;
+  }
+}
+
+export async function preflightVideoPlayback(sourceUrl: string, mimeType = ''): Promise<void> {
+  const video = document.createElement('video');
+  video.preload = 'metadata';
+  video.playsInline = true;
+  video.muted = true;
+  video.crossOrigin = 'anonymous';
+
+  if (mimeType && typeof video.canPlayType === 'function' && video.canPlayType(mimeType) === '') {
+    throw new Error(getVideoDecodeErrorMessage(4, mimeType));
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+
+    const settle = (cb: () => void) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cb();
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      settle(() => reject(new Error(`Timed out while reading video metadata. ${VIDEO_TRANSCODE_TIP}`)));
+    }, 8000);
+
+    const onLoaded = () => {
+      if (video.videoWidth <= 0) {
+        onError();
+        return;
+      }
+
+      cleanup();
+      settle(resolve);
+    };
+
+    const onError = () => {
+      const errorCode = video.error?.code;
+      cleanup();
+      settle(() => reject(new Error(getVideoDecodeErrorMessage(errorCode, mimeType || 'video file'))));
+    };
+
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      video.removeEventListener('loadedmetadata', onLoaded);
+      video.removeEventListener('error', onError);
+      video.remove();
+    };
+
+    video.addEventListener('loadedmetadata', onLoaded);
+    video.addEventListener('error', onError);
+    video.src = sourceUrl;
+    if (typeof video.load === 'function') {
+      video.load();
+    }
+
+    if (video.readyState >= 1 && video.videoWidth > 0) {
+      onLoaded();
+    }
+  });
+}
+
+export function getVideoLoadFailureMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  if (typeof error === 'string' && error.trim()) {
+    return error;
+  }
+
+  return getVideoDecodeErrorMessage(undefined, 'video file');
 }
 
 async function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
