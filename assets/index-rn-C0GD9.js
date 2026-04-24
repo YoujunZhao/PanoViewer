@@ -3881,7 +3881,7 @@ void main() {
         <p class="hint">Supported images: JPG, PNG, WEBP. Supported videos: MP4, WEBM, MOV.</p>
 
         <label class="file-picker" for="file-input">
-          Choose image / video
+          Upload image / video
           <input id="file-input" type="file" accept="image/*,video/*,.jpg,.jpeg,.png,.webp,.gif,.avif,.mp4,.webm,.mov,.m4v,.ogv" />
         </label>
 
