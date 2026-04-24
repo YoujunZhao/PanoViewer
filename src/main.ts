@@ -67,9 +67,8 @@ app.innerHTML = `
           <h3>Conversion Helper</h3>
           <p id="transcode-reason" class="transcode-reason"></p>
 
-          <button id="auto-convert-btn" type="button" class="auto-convert-btn">Convert in browser and reload</button>
           <p id="auto-convert-status" class="auto-convert-status"></p>
-          <p class="auto-convert-note">Runs locally in your browser. First run may download transcoder core files.</p>
+          <p class="auto-convert-note">Automatic browser conversion is attempted when codec is unsupported. First run may download transcoder core files.</p>
 
           <p class="transcode-label">MP4 (H.264/AVC + AAC)</p>
           <pre id="transcode-mp4" class="transcode-code"></pre>
@@ -98,7 +97,6 @@ const fileValue = document.querySelector<HTMLElement>('#file-value');
 const status = document.querySelector<HTMLElement>('#status');
 const transcodeHelp = document.querySelector<HTMLElement>('#transcode-help');
 const transcodeReason = document.querySelector<HTMLElement>('#transcode-reason');
-const autoConvertButton = document.querySelector<HTMLButtonElement>('#auto-convert-btn');
 const autoConvertStatus = document.querySelector<HTMLElement>('#auto-convert-status');
 const transcodeMp4 = document.querySelector<HTMLElement>('#transcode-mp4');
 const transcodeWebm = document.querySelector<HTMLElement>('#transcode-webm');
@@ -116,7 +114,6 @@ if (
   !status ||
   !transcodeHelp ||
   !transcodeReason ||
-  !autoConvertButton ||
   !autoConvertStatus ||
   !transcodeMp4 ||
   !transcodeWebm ||
@@ -132,7 +129,6 @@ const fileValueEl = fileValue;
 const statusEl = status;
 const transcodeHelpEl = transcodeHelp;
 const transcodeReasonEl = transcodeReason;
-const autoConvertButtonEl = autoConvertButton;
 const autoConvertStatusEl = autoConvertStatus;
 const transcodeMp4El = transcodeMp4;
 const transcodeWebmEl = transcodeWebm;
@@ -143,8 +139,12 @@ const objectUrlStore = new ObjectUrlStore();
 const MAX_BROWSER_TRANSCODE_SIZE_BYTES = 120 * 1024 * 1024;
 
 let currentObjectUrl: string | null = null;
-let pendingTranscodeFile: File | null = null;
 let transcodeInProgress = false;
+let transcodeSourceFileName: string | null = null;
+
+type LoadPanoramaOptions = {
+  allowAutoTranscode?: boolean;
+};
 
 function setStatus(message: string, kind: 'info' | 'error' = 'info'): void {
   statusEl.textContent = message;
@@ -162,25 +162,16 @@ function shouldShowTranscodeHelp(errorMessage: string): boolean {
 
 function hideTranscodeHelp(): void {
   transcodeHelpEl.hidden = true;
-  pendingTranscodeFile = null;
-  transcodeInProgress = false;
-  autoConvertButtonEl.disabled = false;
-  autoConvertButtonEl.textContent = 'Convert in browser and reload';
   autoConvertStatusEl.textContent = '';
   transcodeReasonEl.textContent = '';
   transcodeMp4El.textContent = '';
   transcodeWebmEl.textContent = '';
 }
 
-function showTranscodeHelp(file: File, reason: string | null): void {
-  const fileName = file.name;
+function showTranscodeHelp(fileName: string, reason: string | null, autoStatus: string | null = null): void {
   const commands = buildVideoTranscodeCommands(fileName);
   transcodeReasonEl.textContent = reason ?? 'Your browser cannot decode this uploaded video directly. Convert it with one of the commands below and upload the converted file.';
-  pendingTranscodeFile = file;
-  transcodeInProgress = false;
-  autoConvertButtonEl.disabled = false;
-  autoConvertButtonEl.textContent = 'Convert in browser and reload';
-  autoConvertStatusEl.textContent = '';
+  autoConvertStatusEl.textContent = autoStatus ?? '';
   transcodeMp4El.textContent = commands.mp4;
   transcodeWebmEl.textContent = commands.webm;
   transcodeHelpEl.hidden = false;
@@ -188,7 +179,6 @@ function showTranscodeHelp(file: File, reason: string | null): void {
 
 function updateAutoConvertProgress(message: string): void {
   autoConvertStatusEl.textContent = message;
-  setStatus(message);
 }
 
 async function writeClipboardText(text: string): Promise<void> {
@@ -236,30 +226,28 @@ async function copyCommandToClipboard(command: string, label: string): Promise<v
 
 hideTranscodeHelp();
 
-async function convertPendingVideoInBrowser(): Promise<void> {
-  if (!pendingTranscodeFile) {
-    setStatus('No failed video is waiting for conversion. Upload a video first.', 'error');
-    return;
-  }
-
+async function attemptAutoConvertForVideo(sourceFile: File): Promise<{ success: boolean; message: string }> {
   if (transcodeInProgress) {
-    return;
+    return {
+      success: false,
+      message: 'Automatic conversion is already running. Please wait for completion.',
+    };
   }
 
-  const sourceFile = pendingTranscodeFile;
   if (sourceFile.size > MAX_BROWSER_TRANSCODE_SIZE_BYTES) {
-    setStatus('This file is too large for safe in-browser transcoding on most devices. Use the ffmpeg command below.', 'error');
-    autoConvertStatusEl.textContent = 'File is too large for browser conversion fallback.';
-    return;
+    return {
+      success: false,
+      message: 'File is too large for safe automatic browser conversion on most devices. Use one of the ffmpeg commands below.',
+    };
   }
 
   transcodeInProgress = true;
-  autoConvertButtonEl.disabled = true;
-  autoConvertButtonEl.textContent = 'Converting...';
+  transcodeSourceFileName = sourceFile.name;
 
   let unloadBrowserTranscoder: (() => void) | null = null;
 
   try {
+    setStatus('Unsupported codec detected. Automatic browser conversion started...');
     const browserTranscodeModule = await import('./lib/browser-transcode');
     const { transcodeVideoInBrowser } = browserTranscodeModule;
     unloadBrowserTranscoder = browserTranscodeModule.unloadBrowserTranscoder;
@@ -271,29 +259,51 @@ async function convertPendingVideoInBrowser(): Promise<void> {
     });
 
     updateAutoConvertProgress(`Converted to ${result.target.toUpperCase()}. Reloading viewer...`);
-    await loadPanoramaFile(result.file);
+    const loaded = await loadPanoramaFile(result.file, { allowAutoTranscode: false });
+    if (loaded) {
+      return {
+        success: true,
+        message: `Automatic browser conversion succeeded (${result.target.toUpperCase()}).`,
+      };
+    }
+
+    const nestedFailureMessage = statusEl.textContent.trim();
+
+    return {
+      success: false,
+      message: `Automatic conversion produced ${result.target.toUpperCase()}, but the converted video still failed to load (${nestedFailureMessage || 'unknown reason'}). Use ffmpeg commands below.`,
+    };
   } catch (error) {
     const message = error instanceof Error && error.message
       ? error.message
       : 'Unknown browser transcoding failure.';
-    autoConvertStatusEl.textContent = `Browser conversion failed: ${message}`;
-    setStatus('Browser conversion failed. Use the ffmpeg command below as fallback.', 'error');
+    return {
+      success: false,
+      message: `Automatic browser conversion failed: ${message}`,
+    };
   } finally {
     unloadBrowserTranscoder?.();
     transcodeInProgress = false;
-    autoConvertButtonEl.disabled = false;
-    autoConvertButtonEl.textContent = 'Convert in browser and reload';
+    transcodeSourceFileName = null;
   }
 }
 
-async function loadPanoramaFile(file: File): Promise<void> {
+async function loadPanoramaFile(file: File, options?: LoadPanoramaOptions): Promise<boolean> {
+  const allowAutoTranscode = options?.allowAutoTranscode ?? true;
+
+  if (allowAutoTranscode && transcodeInProgress) {
+    const sourceHint = transcodeSourceFileName ? ` for ${transcodeSourceFileName}` : '';
+    setStatus(`Automatic conversion is still running${sourceHint}. Please wait before loading another file.`, 'error');
+    return false;
+  }
+
   const mediaType = detectPanoramaMediaType(file);
 
   if (!mediaType) {
     hideTranscodeHelp();
     setStatus('Unsupported file format. Please use a panorama image or video file.', 'error');
     fileInputEl.value = '';
-    return;
+    return false;
   }
 
   hideTranscodeHelp();
@@ -304,7 +314,7 @@ async function loadPanoramaFile(file: File): Promise<void> {
     hideTranscodeHelp();
     setStatus(validationDecision.message ?? 'File validation failed.', 'error');
     fileInputEl.value = '';
-    return;
+    return false;
   }
 
   const previousObjectUrl = currentObjectUrl;
@@ -329,6 +339,7 @@ async function loadPanoramaFile(file: File): Promise<void> {
     } else {
       setStatus('Loaded successfully. Drag to rotate and use wheel/pinch to zoom.');
     }
+    return true;
   } catch (error) {
     objectUrlStore.revoke(nextObjectUrl);
     objectUrlStore.revoke(previousObjectUrl);
@@ -340,13 +351,26 @@ async function loadPanoramaFile(file: File): Promise<void> {
 
       if (shouldShowTranscodeHelp(failureMessage)) {
         const streamHint = await sniffVideoCompatibilityHint(file);
-        showTranscodeHelp(file, streamHint);
+
+        if (allowAutoTranscode) {
+          showTranscodeHelp(file.name, streamHint, 'Unsupported codec detected. Trying automatic browser conversion...');
+          const autoConvertResult = await attemptAutoConvertForVideo(file);
+          if (autoConvertResult.success) {
+            return true;
+          }
+
+          showTranscodeHelp(file.name, streamHint, autoConvertResult.message);
+          setStatus('Automatic conversion did not finish loading. Use the ffmpeg commands below.', 'error');
+        } else {
+          showTranscodeHelp(file.name, streamHint, 'Automatic conversion is skipped for this load attempt. Use the ffmpeg commands below.');
+        }
       }
     } else {
       hideTranscodeHelp();
       setStatus('Failed to render this panorama file. Please check format and try another one.', 'error');
     }
     console.error(error);
+    return false;
   } finally {
     fileInputEl.value = '';
   }
@@ -391,10 +415,6 @@ copyMp4Button.addEventListener('click', () => {
 
 copyWebmButton.addEventListener('click', () => {
   void copyCommandToClipboard(transcodeWebmEl.textContent ?? '', 'WebM');
-});
-
-autoConvertButtonEl.addEventListener('click', () => {
-  void convertPendingVideoInBrowser();
 });
 
 fullscreenButton.addEventListener('click', () => {

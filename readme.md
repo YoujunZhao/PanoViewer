@@ -23,7 +23,7 @@ It supports loading local equirectangular panorama images and videos directly in
 - Drag-and-drop file loading
 - Client-side 2:1 ratio validation: strict for images, warning-only for videos
 - Unsupported video diagnostics with built-in ffmpeg conversion command helper
-- One-click in-browser conversion for unsupported codecs (tries MP4 H.264 first, then WebM VP9)
+- Automatic in-browser conversion for unsupported codecs (tries MP4 H.264 first, then WebM VP9)
 
 ## Tech Stack
 
