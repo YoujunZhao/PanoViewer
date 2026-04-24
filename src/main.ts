@@ -4,6 +4,7 @@ import './style.css';
 
 import {
   detectPanoramaMediaType,
+  getEquirectangularValidationDecision,
   ObjectUrlStore,
   type PanoramaMediaType,
   validateLikelyEquirectangular,
@@ -120,11 +121,9 @@ async function loadPanoramaFile(file: File): Promise<void> {
 
   setStatus('Inspecting media metadata...');
   const looksLikePanorama = await validateLikelyEquirectangular(file, mediaType);
-  if (!looksLikePanorama) {
-    setStatus(
-      'This file does not look like a full equirectangular panorama (expected close to a 2:1 ratio).',
-      'error',
-    );
+  const validationDecision = getEquirectangularValidationDecision(mediaType, looksLikePanorama);
+  if (!validationDecision.allowLoad) {
+    setStatus(validationDecision.message ?? 'File validation failed.', 'error');
     fileInputEl.value = '';
     return;
   }
@@ -144,7 +143,11 @@ async function loadPanoramaFile(file: File): Promise<void> {
     currentObjectUrl = nextObjectUrl;
     objectUrlStore.revoke(previousObjectUrl);
     setMeta(mediaType, file.name);
-    setStatus('Loaded successfully. Drag to rotate and use wheel/pinch to zoom.');
+    if (validationDecision.level === 'warning') {
+      setStatus(validationDecision.message ?? 'Loaded with warning.');
+    } else {
+      setStatus('Loaded successfully. Drag to rotate and use wheel/pinch to zoom.');
+    }
   } catch (error) {
     objectUrlStore.revoke(nextObjectUrl);
     objectUrlStore.revoke(previousObjectUrl);

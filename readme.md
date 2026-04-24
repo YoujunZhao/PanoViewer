@@ -12,7 +12,7 @@ It supports loading local equirectangular panorama images and videos directly in
 - Fullscreen viewing
 - Video mode controls: play/pause, mute, time/progress bar (via VideoPlugin)
 - Drag-and-drop file loading
-- Client-side 2:1 ratio validation for likely equirectangular files
+- Client-side 2:1 ratio validation: strict for images, warning-only for videos
 
 ## Tech Stack
 
@@ -86,5 +86,6 @@ Use these settings:
 
 ## Notes
 
-- Panorama images/videos are expected to be equirectangular and close to 2:1 ratio.
+- Panorama sources are expected to be equirectangular and close to 2:1 ratio.
+- Images that fail the ratio check are blocked. Videos that fail the ratio check show a warning but still attempt to load.
 - Very large video panoramas may be limited by browser/GPU capabilities.

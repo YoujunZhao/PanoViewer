@@ -1,5 +1,11 @@
 export type PanoramaMediaType = 'image' | 'video';
 
+export type EquirectangularValidationDecision = {
+  allowLoad: boolean;
+  level: 'ok' | 'warning' | 'error';
+  message: string | null;
+};
+
 const IMAGE_EXTENSIONS = new Set([
   'jpg',
   'jpeg',
@@ -41,6 +47,7 @@ export function detectPanoramaMediaType(file: File): PanoramaMediaType | null {
 export function isLikelyEquirectangular(
   width: number,
   height: number,
+  // Allow moderate deviation because some exports include light vertical crop.
   tolerance = 0.22,
 ): boolean {
   if (width <= 0 || height <= 0) {
@@ -49,6 +56,33 @@ export function isLikelyEquirectangular(
 
   const ratio = width / height;
   return Math.abs(ratio - 2) <= tolerance;
+}
+
+export function getEquirectangularValidationDecision(
+  mediaType: PanoramaMediaType,
+  looksLikePanorama: boolean,
+): EquirectangularValidationDecision {
+  if (looksLikePanorama) {
+    return {
+      allowLoad: true,
+      level: 'ok',
+      message: null,
+    };
+  }
+
+  if (mediaType === 'video') {
+    return {
+      allowLoad: true,
+      level: 'warning',
+      message: 'This video is not close to 2:1 ratio or metadata could not be read. Loading will still be attempted.',
+    };
+  }
+
+  return {
+    allowLoad: false,
+    level: 'error',
+    message: 'This file does not look like a full equirectangular panorama (expected close to a 2:1 ratio).',
+  };
 }
 
 async function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
