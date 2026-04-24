@@ -246,6 +246,25 @@ button.ghost {
   color: var(--ink-700);
 }
 
+button.auto-convert-btn {
+  justify-self: start;
+  font-size: 0.82rem;
+  padding: 0.5rem 0.72rem;
+  background: linear-gradient(110deg, #ffd58b, #f2a84d);
+}
+
+.auto-convert-status {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--teal-700);
+}
+
+.auto-convert-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--ink-500);
+}
+
 .transcode-label {
   margin: 0;
   font-weight: 700;

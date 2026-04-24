@@ -85,8 +85,8 @@ export function buildVideoTranscodeCommands(fileName: string): VideoTranscodeCom
   const outputWebmArg = quoteShellArgument(`${outputStem}-vp9.webm`);
 
   return {
-    mp4: `ffmpeg -i ${inputArg} -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p" -c:v libx264 -profile:v high -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 160k ${outputMp4Arg}`,
-    webm: `ffmpeg -i ${inputArg} -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p" -c:v libvpx-vp9 -b:v 0 -crf 30 -row-mt 1 -c:a libopus -b:a 128k ${outputWebmArg}`,
+    mp4: `ffmpeg -i ${inputArg} -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p" -c:v libx264 -profile:v high -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 128k ${outputMp4Arg}`,
+    webm: `ffmpeg -i ${inputArg} -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p" -c:v libvpx-vp9 -b:v 0 -crf 32 -row-mt 1 -c:a libopus -b:a 96k ${outputWebmArg}`,
   };
 }
 
