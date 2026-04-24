@@ -114,6 +114,7 @@ h1 {
   justify-content: center;
   align-items: center;
   padding: 0.65rem 0.95rem;
+  font-size: 1.04rem;
   border-radius: 0.8rem;
   background: linear-gradient(110deg, var(--teal-500), #00a8a8);
   color: #f3fcfc;
@@ -138,6 +139,8 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 1.08rem;
+  font-weight: 600;
   text-align: center;
   color: var(--ink-700);
   background: rgba(242, 168, 77, 0.08);
@@ -156,6 +159,10 @@ h1 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.65rem;
+}
+
+.action-row button {
+  font-size: 1.04rem;
 }
 
 button {
