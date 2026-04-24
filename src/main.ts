@@ -21,10 +21,13 @@ if (!app) {
 
 app.innerHTML = `
   <div class="app-shell">
-    <header class="topbar" aria-label="Top navigation">
-      <div class="topbar-brand" aria-label="PanoViewer brand">
-        <img src="favicon.svg" class="brand-logo" alt="PanoViewer logo" />
-        <span class="brand-name">PanoViewer</span>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Pure Frontend 360 Toolkit</p>
+        <h1 class="site-title">
+          <img src="favicon.svg" class="site-logo" alt="PanoViewer logo" />
+          360 Panorama Viewer
+        </h1>
       </div>
       <p class="topbar-note">Upload local equirectangular panorama files, then drag, touch, zoom, and fullscreen preview.</p>
     </header>
