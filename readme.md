@@ -5,9 +5,14 @@ Live URL: https://youjunzhao.github.io/PanoViewer/
 ## Demo
 
 - Online demo: https://youjunzhao.github.io/PanoViewer/
-- Example screenshot:
 
-![Demo Screenshot](public/demo-screenshot.png)
+| Panorama Image | Panorama Image Demo |
+| --- | --- |
+| ![Panorama Image](public/pano_img.png) | ![Panorama Image Demo](public/pano_img_demo.png) |
+
+| Panorama Video | Panorama Video Demo |
+| --- | --- |
+| ![Panorama Video](public/pano_video.png) | <video src="public/pano_video_demo.mp4" controls muted loop playsinline width="100%"></video> |
 
 Pure frontend 360 panorama viewer based on Photo Sphere Viewer + TypeScript + Vite.
 
