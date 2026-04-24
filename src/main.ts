@@ -22,12 +22,19 @@ if (!app) {
 app.innerHTML = `
   <div class="app-shell">
     <header class="topbar">
-      <div>
-        <p class="eyebrow">Pure Frontend 360 Toolkit</p>
+      <div class="topbar-brand">
         <h1 class="site-title">
           <img src="favicon.svg" class="site-logo" alt="PanoViewer logo" />
-          360 Panorama Viewer
+          PanoViewer
         </h1>
+        <a
+          class="repo-link"
+          href="https://github.com/YoujunZhao/PanoViewer"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          github
+        </a>
       </div>
       <p class="topbar-note">Upload local equirectangular panorama files, then drag, touch, zoom, and fullscreen preview.</p>
     </header>
@@ -41,10 +48,6 @@ app.innerHTML = `
           Choose image / video
           <input id="file-input" type="file" accept="image/*,video/*,.jpg,.jpeg,.png,.webp,.gif,.avif,.mp4,.webm,.mov,.m4v,.ogv" />
         </label>
-
-        <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Drop panorama file here or press enter to choose file">
-          Drop file here
-        </div>
 
         <div class="action-row">
           <button id="fullscreen-btn" type="button">Fullscreen</button>
@@ -62,11 +65,22 @@ app.innerHTML = `
           </div>
         </dl>
 
-        <p id="status" class="status" aria-live="polite">Select or drop a panorama file to start.</p>
+        <p id="status" class="status" aria-live="polite">Use upload on the left, drop in viewer, or paste media to start.</p>
       </aside>
 
       <section class="viewer-card" aria-label="Panorama viewer">
-        <div id="viewer" class="viewer"></div>
+        <div id="viewer-stage" class="viewer-stage">
+          <div id="viewer" class="viewer"></div>
+          <div id="viewer-empty" class="viewer-empty" aria-live="polite">
+            <div class="viewer-empty-card">
+              <p><strong>Upload image or video</strong> using the left upload button</p>
+              <p class="viewer-empty-separator">or</p>
+              <p><strong>Drop file right here</strong> in the viewer area</p>
+              <p class="viewer-empty-separator">or</p>
+              <p><strong>Ctrl+V / Cmd+V</strong> to paste media from clipboard</p>
+            </div>
+          </div>
+        </div>
         <p class="viewer-tip">Drag or swipe to rotate, use wheel/pinch to zoom. Video mode includes play/pause, mute, and progress bar controls.</p>
       </section>
     </main>
@@ -74,23 +88,25 @@ app.innerHTML = `
 `;
 
 const fileInput = document.querySelector<HTMLInputElement>('#file-input');
-const dropzone = document.querySelector<HTMLDivElement>('#dropzone');
 const fullscreenButton = document.querySelector<HTMLButtonElement>('#fullscreen-btn');
 const clearButton = document.querySelector<HTMLButtonElement>('#clear-btn');
 const modeValue = document.querySelector<HTMLElement>('#mode-value');
 const fileValue = document.querySelector<HTMLElement>('#file-value');
 const status = document.querySelector<HTMLElement>('#status');
 const viewerContainer = document.querySelector<HTMLElement>('#viewer');
+const viewerStage = document.querySelector<HTMLElement>('#viewer-stage');
+const viewerEmpty = document.querySelector<HTMLElement>('#viewer-empty');
 
 if (
   !fileInput ||
-  !dropzone ||
   !fullscreenButton ||
   !clearButton ||
   !modeValue ||
   !fileValue ||
   !status ||
-  !viewerContainer
+  !viewerContainer ||
+  !viewerStage ||
+  !viewerEmpty
 ) {
   throw new Error('Missing required UI elements');
 }
@@ -99,6 +115,8 @@ const modeValueEl = modeValue;
 const fileValueEl = fileValue;
 const statusEl = status;
 const fileInputEl = fileInput;
+const viewerStageEl = viewerStage;
+const viewerEmptyEl = viewerEmpty;
 
 const viewerController = new PanoramaViewerController(viewerContainer);
 const objectUrlStore = new ObjectUrlStore();
@@ -111,6 +129,11 @@ let transcodeSourceFileName: string | null = null;
 type LoadPanoramaOptions = {
   allowAutoTranscode?: boolean;
 };
+
+function setViewerEmptyState(isEmpty: boolean): void {
+  viewerStageEl.classList.toggle('is-empty', isEmpty);
+  viewerEmptyEl.hidden = !isEmpty;
+}
 
 function setStatus(message: string, kind: 'info' | 'error' = 'info'): void {
   statusEl.textContent = message;
@@ -230,6 +253,7 @@ async function loadPanoramaFile(file: File, options?: LoadPanoramaOptions): Prom
     currentObjectUrl = nextObjectUrl;
     objectUrlStore.revoke(previousObjectUrl);
     setMeta(mediaType, file.name);
+    setViewerEmptyState(false);
     if (validationDecision.level === 'warning') {
       setStatus(validationDecision.message ?? 'Loaded with warning.');
     } else {
@@ -241,6 +265,7 @@ async function loadPanoramaFile(file: File, options?: LoadPanoramaOptions): Prom
     objectUrlStore.revoke(previousObjectUrl);
     currentObjectUrl = null;
     setMeta(null, null);
+    setViewerEmptyState(true);
     if (mediaType === 'video') {
       const failureMessage = getVideoLoadFailureMessage(error);
       setStatus(failureMessage, 'error');
@@ -270,30 +295,46 @@ fileInput.addEventListener('change', () => {
   }
 });
 
-dropzone.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault();
-    fileInput.click();
-  }
-});
-
-dropzone.addEventListener('dragover', (event) => {
+viewerStageEl.addEventListener('dragover', (event) => {
   event.preventDefault();
-  dropzone.classList.add('is-dragover');
+  viewerStageEl.classList.add('is-dragover');
 });
 
-dropzone.addEventListener('dragleave', () => {
-  dropzone.classList.remove('is-dragover');
+viewerStageEl.addEventListener('dragleave', () => {
+  viewerStageEl.classList.remove('is-dragover');
 });
 
-dropzone.addEventListener('drop', (event) => {
+viewerStageEl.addEventListener('drop', (event) => {
   event.preventDefault();
-  dropzone.classList.remove('is-dragover');
+  viewerStageEl.classList.remove('is-dragover');
 
   const [file] = event.dataTransfer?.files ?? [];
   if (file) {
     void loadPanoramaFile(file);
   }
+});
+
+window.addEventListener('paste', (event) => {
+  const items = Array.from(event.clipboardData?.items ?? []);
+  const mediaItem = items.find((item) => item.kind === 'file' && /^(image|video)\//.test(item.type));
+
+  if (!mediaItem) {
+    return;
+  }
+
+  const pastedFile = mediaItem.getAsFile();
+  if (!pastedFile) {
+    return;
+  }
+
+  event.preventDefault();
+
+  const inferredExt = pastedFile.type.split('/')[1] || 'bin';
+  const normalizedFile = pastedFile.name
+    ? pastedFile
+    : new File([pastedFile], `pasted-media.${inferredExt}`, { type: pastedFile.type });
+
+  void loadPanoramaFile(normalizedFile);
 });
 
 fullscreenButton.addEventListener('click', () => {
@@ -307,9 +348,12 @@ clearButton.addEventListener('click', () => {
   objectUrlStore.revoke(currentObjectUrl);
   currentObjectUrl = null;
   setMeta(null, null);
+  setViewerEmptyState(true);
   setStatus('Viewer cleared. Select another panorama file to continue.');
   fileInput.value = '';
 });
+
+setViewerEmptyState(true);
 
 window.addEventListener('beforeunload', () => {
   viewerController.destroy();
