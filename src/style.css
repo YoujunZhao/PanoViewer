@@ -300,6 +300,10 @@ button.ghost {
   pointer-events: none;
 }
 
+.viewer-empty[hidden] {
+  display: none;
+}
+
 .viewer-empty-card {
   width: min(100%, 500px);
   padding: clamp(1rem, 3vw, 1.8rem);
