@@ -11,9 +11,13 @@
 
 ## Demo
 
+### Panorama Image
+
 ![Panorama Image](public/pano_img.png)
 
 ![Panorama Image Demo](public/pano_img_demo.gif)
+
+### Panorama Video
 
 ![Panorama Video](public/pano_video.gif)
 
